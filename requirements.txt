@@ -1,0 +1,44 @@
+# Web Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.6.0
+pydantic-settings==2.1.0
+
+# Database
+supabase==2.3.0
+asyncpg==0.29.0
+psycopg2-binary==2.9.9
+
+# LLM & AI
+openai==1.12.0
+langchain==0.1.6
+langchain-core==0.1.23
+langchain-openai==0.0.5
+langgraph==0.0.20
+
+# Reddit
+asyncpraw==7.7.1
+httpx==0.26.0
+
+# Google Cloud
+google-cloud-kms==2.20.0
+google-cloud-tasks==2.15.0
+google-cloud-secret-manager==2.17.0
+
+# Auth & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+
+# Utilities
+python-dotenv==1.0.0
+tenacity==8.2.3
+
+# Development
+pytest==7.4.3
+pytest-asyncio==0.21.1
+httpx==0.26.0
+black==23.12.1
+ruff==0.1.9
+mypy==1.8.0
+
