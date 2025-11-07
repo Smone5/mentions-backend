@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.config import settings
 from core.logging import setup_logging
-from api import health, users, companies, reddit, rag
+from api import health, users, companies, reddit, rag, prompts
 
 # Setup logging first
 setup_logging()
@@ -31,6 +31,7 @@ app.include_router(users.router)
 app.include_router(companies.router)
 app.include_router(reddit.router)
 app.include_router(rag.router)
+app.include_router(prompts.router)
 
 
 @app.get("/")
