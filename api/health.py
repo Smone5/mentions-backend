@@ -1,5 +1,6 @@
-"""Health check endpoint."""
-
+"""
+Health check endpoint.
+"""
 from fastapi import APIRouter
 from core.config import settings
 
@@ -7,7 +8,7 @@ router = APIRouter()
 
 
 @router.get("/health")
-def health_check():
+async def health_check():
     """Health check endpoint."""
     return {
         "status": "healthy",

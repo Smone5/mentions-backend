@@ -4,85 +4,38 @@ __pycache__/
 *$py.class
 *.so
 .Python
-
-# Virtual environments
 env/
 venv/
 ENV/
-env.bak/
-venv.bak/
-.venv/
+.venv
+*.egg-info/
+dist/
+build/
 
-# Environment variables
+# Environment
 .env
 .env.local
-.env.production
+.env.*.local
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
 
 # Testing
-.pytest_cache/
 .coverage
 htmlcov/
-*.cover
-.hypothesis/
-
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# PyCharm
-.idea/
-
-# VS Code
-.vscode/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# pyenv
-.python-version
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
+.pytest_cache/
+coverage/
 
 # Logs
 *.log
 logs/
 
-# macOS
-.DS_Store
-
-# Alembic
-alembic/versions/*.pyc
-
-# Redis dumps
-dump.rdb
-
-# Celery
-celerybeat-schedule
-celerybeat.pid
-
-# mypy
+# Type checking
 .mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
+.pytype/
 
 

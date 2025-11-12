@@ -17,6 +17,7 @@ class UserProfile(BaseModel):
     sms_consent: bool = False
     sms_opt_out_at: Optional[datetime] = None
     company_id: Optional[UUID] = None
+    role: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

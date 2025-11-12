@@ -1,5 +1,7 @@
-"""Database connection and client setup."""
-
+"""
+Database connection and client management.
+Uses Supabase client for PostgreSQL access.
+"""
 from supabase import create_client, Client
 from core.config import settings
 import logging
@@ -19,12 +21,19 @@ def get_supabase_client() -> Client:
             settings.SUPABASE_URL,
             settings.SUPABASE_SERVICE_ROLE_KEY
         )
-        logger.info("Supabase client initialized")
+        logger.info(f"supabase_client_created: url={settings.SUPABASE_URL}", extra={"url": settings.SUPABASE_URL})
     
     return _supabase_client
 
 
+def get_db_connection():
+    """Get database connection (for direct SQL queries if needed)."""
+    # For now, use Supabase client
+    # Can add asyncpg connection pool later if needed
+    return get_supabase_client()
+
+
 def get_db_connection_string() -> str:
-    """Get database connection string."""
+    """Get the database connection string."""
     return settings.DB_CONN
 

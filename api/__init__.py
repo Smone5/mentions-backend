@@ -1,2 +1,2 @@
-# API routes module
+"""API route handlers."""
 

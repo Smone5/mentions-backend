@@ -35,3 +35,4 @@ CREATE POLICY "Owners can delete company"
 -- Comment for documentation
 COMMENT ON COLUMN companies.owner_id IS 'User who owns/created this company';
 
+

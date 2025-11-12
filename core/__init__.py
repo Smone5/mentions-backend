@@ -1,2 +1,2 @@
-# Core module
+"""Core modules for Mentions backend."""
 

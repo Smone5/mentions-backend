@@ -23,10 +23,42 @@ CREATE INDEX IF NOT EXISTS idx_user_profiles_sms_consent ON user_profiles(sms_co
 -- Create function to handle user signup with extended profile
 CREATE OR REPLACE FUNCTION handle_new_user_signup()
 RETURNS TRIGGER AS $$
+DECLARE
+    new_company_id UUID;
+    birthdate_val DATE;
+    company_name_val TEXT;
 BEGIN
+    -- Handle birthdate conversion safely
+    IF NEW.raw_user_meta_data->>'birthdate' IS NOT NULL AND 
+       NEW.raw_user_meta_data->>'birthdate' != '' THEN
+        BEGIN
+            birthdate_val := (NEW.raw_user_meta_data->>'birthdate')::DATE;
+        EXCEPTION WHEN OTHERS THEN
+            birthdate_val := NULL;
+        END;
+    ELSE
+        birthdate_val := NULL;
+    END IF;
+    
+    -- Get company name or use default
+    company_name_val := COALESCE(
+        NULLIF(NEW.raw_user_meta_data->>'company_name', ''),
+        COALESCE(NEW.raw_user_meta_data->>'full_name', 'Personal')
+    );
+    
+    -- Create company FIRST with NULL owner_id (to break circular dependency)
+    -- owner_id will be set after user_profile is created
+    INSERT INTO companies (name, owner_id)
+    VALUES (
+        company_name_val,
+        NULL  -- Set owner_id after user_profile is created
+    )
+    RETURNING id INTO new_company_id;
+    
+    -- Now insert user profile with company_id
     INSERT INTO user_profiles (
         id, 
-        email, 
+        company_id,
         full_name, 
         phone_number, 
         birthdate, 
@@ -36,34 +68,19 @@ BEGIN
     )
     VALUES (
         NEW.id,
-        NEW.email,
+        new_company_id,
         COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
-        NEW.raw_user_meta_data->>'phone_number',
-        (NEW.raw_user_meta_data->>'birthdate')::DATE,
+        NULLIF(NEW.raw_user_meta_data->>'phone_number', ''),
+        birthdate_val,
         COALESCE((NEW.raw_user_meta_data->>'sms_consent')::BOOLEAN, FALSE),
         NOW(),
         NOW()
     );
     
-    -- Create company if company_name is provided
-    IF NEW.raw_user_meta_data->>'company_name' IS NOT NULL AND 
-       NEW.raw_user_meta_data->>'company_name' != '' THEN
-        DECLARE
-            new_company_id UUID;
-        BEGIN
-            INSERT INTO companies (name, owner_id)
-            VALUES (
-                NEW.raw_user_meta_data->>'company_name',
-                NEW.id
-            )
-            RETURNING id INTO new_company_id;
-            
-            -- Link user to company
-            UPDATE user_profiles 
-            SET company_id = new_company_id 
-            WHERE id = NEW.id;
-        END;
-    END IF;
+    -- Now update company to set owner_id (breaking the circular dependency)
+    UPDATE companies
+    SET owner_id = NEW.id
+    WHERE id = new_company_id;
     
     RETURN NEW;
 END;
