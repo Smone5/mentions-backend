@@ -3,7 +3,7 @@
 
 -- Add status column to drafts
 ALTER TABLE drafts 
-ADD COLUMN status text CHECK (status IN ('pending', 'approved', 'rejected', 'posted')) DEFAULT 'pending';
+ADD COLUMN status text CHECK (status IN ('pending', 'approved', 'rejected', 'posted', 'failed')) DEFAULT 'pending';
 
 -- Add approval tracking fields
 ALTER TABLE drafts

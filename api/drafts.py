@@ -36,7 +36,7 @@ async def list_drafts(
     
     # Build query - only show primary drafts (exclude variations)
     query = supabase.table("drafts").select(
-        "*, artifacts!inner(*), approvals(status, approved_by, approved_at)"
+        "*, artifacts!inner(*), approvals!chosen_draft_id(status, approved_by, approved_at)"
     ).eq("artifacts.company_id", str(user.company_id)).is_("source_draft_id", "null")
     
     # Filter by approval status if provided
@@ -95,7 +95,7 @@ async def get_draft(
     
     # Get draft with artifact and approval status
     response = supabase.table("drafts").select(
-        "*, artifacts!inner(*), approvals(status, approved_by, approved_at)"
+        "*, artifacts!inner(*), approvals!chosen_draft_id(status, approved_by, approved_at)"
     ).eq("id", draft_id).eq("artifacts.company_id", str(user.company_id)).single().execute()
     
     if not response.data:
@@ -141,7 +141,7 @@ async def update_draft(
     
     # Get original draft
     draft_response = supabase.table("drafts").select(
-        "*, artifacts!inner(company_id), approvals(status)"
+        "*, artifacts!inner(company_id), approvals!chosen_draft_id(status)"
     ).eq("id", draft_id).single().execute()
     
     if not draft_response.data:
@@ -192,7 +192,7 @@ async def approve_draft(
     
     # Get draft
     draft_response = supabase.table("drafts").select(
-        "*, artifacts!inner(*), approvals(status)"
+        "*, artifacts!inner(*), approvals!chosen_draft_id(status)"
     ).eq("id", draft_id).single().execute()
     
     if not draft_response.data:
@@ -234,7 +234,7 @@ async def post_draft(
     
     # Get draft with approval status
     draft_response = supabase.table("drafts").select(
-        "*, artifacts!inner(company_id), approvals(status, id)"
+        "*, artifacts!inner(company_id), approvals!chosen_draft_id(status, id)"
     ).eq("id", draft_id).single().execute()
     
     if not draft_response.data:
@@ -246,13 +246,32 @@ async def post_draft(
     if artifact.get("company_id") != str(user.company_id):
         raise HTTPException(status_code=403, detail="Access denied")
     
-    # Check if draft is approved
+    # Check if draft is approved or failed (allow retry)
     approvals = draft.get("approvals", [])
-    if not approvals or approvals[0].get("status") != "approved":
+    if not approvals:
         raise HTTPException(
             status_code=400, 
             detail=f"Draft must be approved before posting"
         )
+    
+    approval_status = approvals[0].get("status")
+    if approval_status not in ["approved", "failed"]:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Draft must be approved before posting (current status: {approval_status})"
+        )
+    
+    # If retrying a failed post, log it and reset statuses
+    if approval_status == "failed":
+        logger.info(f"Retrying failed post for draft {draft_id}")
+        # Reset approval status to approved for retry
+        supabase.table("approvals").update({
+            "status": "approved"
+        }).eq("id", approvals[0]["id"]).execute()
+        # Reset draft status to approved for retry
+        supabase.table("drafts").update({
+            "status": "approved"
+        }).eq("id", draft_id).execute()
     
     # Post to Reddit (importing here to avoid circular dependency)
     from services.post import post_to_reddit
@@ -306,7 +325,7 @@ async def reject_draft(
     
     # Get draft
     draft_response = supabase.table("drafts").select(
-        "*, artifacts!inner(company_id), approvals(id)"
+        "*, artifacts!inner(company_id), approvals!chosen_draft_id(id)"
     ).eq("id", draft_id).single().execute()
     
     if not draft_response.data:

@@ -5,6 +5,7 @@ import math
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 from core.database import get_supabase_client
+from core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,16 @@ async def check_post_eligibility(
     Returns:
         (is_eligible, reason)
     """
+    # Allow bypassing rate limits for testing/development
+    if settings.SKIP_RATE_LIMITS:
+        logger.warning(
+            f"⚠️  RATE LIMITS BYPASSED (SKIP_RATE_LIMITS=true)\n"
+            f"   Account: {reddit_account_id}\n"
+            f"   Subreddit: r/{subreddit}\n"
+            f"   This should only be used for testing!"
+        )
+        return True, "Rate limits bypassed"
+    
     supabase = get_supabase_client()
     
     now = datetime.now(timezone.utc)

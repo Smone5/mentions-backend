@@ -26,9 +26,13 @@ class Settings(BaseSettings):
     GOOGLE_LOCATION: str = "us-central1"
     KMS_KEYRING: str
     KMS_KEY: str
+    # Optional: Path to service account key file for local development
+    # If not set, uses Application Default Credentials (ADC)
+    GOOGLE_APPLICATION_CREDENTIALS: str | None = None
     
     # Safety
     ALLOW_POSTS: bool = False
+    SKIP_RATE_LIMITS: bool = False  # Set to True to bypass rate limiting (for testing)
     
     # Logging
     LOG_LEVEL: str = "INFO"

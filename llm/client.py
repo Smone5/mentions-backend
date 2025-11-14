@@ -5,6 +5,7 @@ from typing import Optional, List, Dict, Any, TypeVar, Type
 from openai import OpenAI, AsyncOpenAI
 from pydantic import BaseModel, Field
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+import httpx
 
 from core.config import settings
 
@@ -47,9 +48,23 @@ class LLMClient:
     """
     
     def __init__(self):
-        """Initialize OpenAI client."""
-        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-        self.sync_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        """Initialize OpenAI client with timeout settings."""
+        # Create HTTP clients with reasonable timeouts
+        timeout = httpx.Timeout(
+            connect=5.0,    # 5 seconds to establish connection
+            read=60.0,      # 60 seconds for LLM responses (they can be slow)
+            write=5.0,      # 5 seconds to write request
+            pool=5.0        # 5 seconds to get connection from pool
+        )
+        
+        self.client = AsyncOpenAI(
+            api_key=settings.OPENAI_API_KEY,
+            timeout=timeout
+        )
+        self.sync_client = OpenAI(
+            api_key=settings.OPENAI_API_KEY,
+            timeout=timeout
+        )
     
     @retry(
         stop=stop_after_attempt(3),

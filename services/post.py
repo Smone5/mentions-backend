@@ -49,7 +49,7 @@ async def post_to_reddit(
     # Get draft with artifact and approval info
     logger.info(f"Fetching draft {draft_id} from database...")
     draft_result = supabase.table("drafts").select(
-        "*, artifacts!inner(id, company_id, reddit_account_id, subreddit, thread_id)"
+        "*, artifacts!inner(id, company_id, reddit_account_id, subreddit, thread_id, thread_reddit_id), approvals!chosen_draft_id(status, approved_by)"
     ).eq("id", str(draft_id)).single().execute()
     
     if not draft_result.data:
@@ -60,19 +60,30 @@ async def post_to_reddit(
     
     # HARD RULE #1: Check approval
     logger.info(f"✅ HARD RULE #1: Checking human approval...")
-    if draft.get("status") != "approved":
-        logger.error(f"❌ Draft not approved (status: {draft.get('status')})")
-        raise Exception(f"Draft not approved (status: {draft.get('status')})")
     
-    if not draft.get("approved_by"):
+    # Get approval status from approvals table
+    approvals = draft.get("approvals", [])
+    if not approvals:
+        logger.error(f"❌ Draft not approved (no approval record found)")
+        raise Exception(f"Draft not approved (status: pending)")
+    
+    approval = approvals[0]
+    approval_status = approval.get("status")
+    
+    if approval_status != "approved":
+        logger.error(f"❌ Draft not approved (status: {approval_status})")
+        raise Exception(f"Draft not approved (status: {approval_status})")
+    
+    approver_id = approval.get("approved_by")
+    if not approver_id:
         logger.error(f"❌ No approver found")
         raise Exception("No approver found - human approval required")
     
-    logger.info(f"   Draft approved by: {draft.get('approved_by')}")
+    logger.info(f"   Draft approved by: {approver_id}")
     
-    if draft.get("approved_by") != str(approved_by):
+    if approver_id != str(approved_by):
         logger.warning(
-            f"Approved_by mismatch: draft has {draft.get('approved_by')}, "
+            f"Approved_by mismatch: approval has {approver_id}, "
             f"requested by {approved_by}"
         )
     
@@ -119,7 +130,7 @@ async def post_to_reddit(
     
     # All hard rules passed - POST TO REDDIT
     logger.info(f"✅ ALL HARD RULES PASSED - Proceeding to post to Reddit")
-    logger.info(f"   Thread: {artifact['thread_id']}")
+    logger.info(f"   Thread: {artifact['thread_reddit_id']}")
     logger.info(f"   Subreddit: r/{artifact['subreddit']}")
     
     try:
@@ -134,7 +145,7 @@ async def post_to_reddit(
         # Post comment
         logger.info(f"   Calling reddit_client.post_comment()...")
         result = await reddit_client.post_comment(
-            thread_id=artifact["thread_id"],
+            thread_id=artifact["thread_reddit_id"],
             body=draft["body"]
         )
         logger.info(f"   reddit_client.post_comment() returned")
@@ -152,7 +163,7 @@ async def post_to_reddit(
             "reddit_account_id": artifact["reddit_account_id"],
             "artifact_id": artifact["id"],
             "subreddit": artifact["subreddit"],
-            "thread_reddit_id": artifact["thread_id"],
+            "thread_reddit_id": artifact["thread_reddit_id"],
             "comment_reddit_id": result["id"],
             "permalink": result["permalink"],
             "posted_at": datetime.utcnow().isoformat(),
@@ -214,15 +225,15 @@ async def post_to_reddit(
                 "reddit_account_id": artifact["reddit_account_id"],
                 "artifact_id": artifact["id"],
                 "subreddit": artifact["subreddit"],
-                "thread_reddit_id": artifact["thread_id"],
+                "thread_reddit_id": artifact["thread_reddit_id"],
                 "posted_at": datetime.utcnow().isoformat(),
                 "verified": False,
                 "error_message": str(e),
                 "idempotency_key": f"failed_{draft_id}_{datetime.utcnow().isoformat()}",
             }
             supabase.table("posts").insert(error_post_data).execute()
-        except:
-            pass
+        except Exception as error_log_ex:
+            logger.warning(f"Failed to log error post record: {error_log_ex}")
         
         # Update draft status
         supabase.table("drafts").update({
@@ -241,7 +252,7 @@ async def _mock_post(draft: dict, artifact: dict) -> dict:
     supabase = get_supabase_client()
     
     mock_comment_id = f"mock_{uuid4().hex[:8]}"
-    mock_permalink = f"/r/{artifact['subreddit']}/comments/{artifact['thread_id']}/test/{mock_comment_id}"
+    mock_permalink = f"/r/{artifact['subreddit']}/comments/{artifact['thread_reddit_id']}/test/{mock_comment_id}"
     
     post_data = {
         "id": str(uuid4()),
@@ -249,7 +260,7 @@ async def _mock_post(draft: dict, artifact: dict) -> dict:
         "reddit_account_id": artifact["reddit_account_id"],
         "artifact_id": artifact["id"],
         "subreddit": artifact["subreddit"],
-        "thread_reddit_id": artifact["thread_id"],
+        "thread_reddit_id": artifact["thread_reddit_id"],
         "comment_reddit_id": mock_comment_id,
         "permalink": mock_permalink,
         "posted_at": datetime.utcnow().isoformat(),

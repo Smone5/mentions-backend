@@ -2,8 +2,10 @@
 
 import base64
 import logging
+import os
 from google.cloud.kms_v1 import KeyManagementServiceClient
 from google.api_core import exceptions as gcp_exceptions
+from google.oauth2 import service_account
 
 from core.config import settings
 
@@ -11,7 +13,33 @@ logger = logging.getLogger(__name__)
 
 
 def get_kms_client():
-    """Get KMS client instance."""
+    """
+    Get KMS client instance with proper authentication.
+    
+    Uses service account credentials if GOOGLE_APPLICATION_CREDENTIALS is set,
+    otherwise falls back to Application Default Credentials (ADC).
+    """
+    # Check if explicit credentials path is provided
+    creds_path = settings.GOOGLE_APPLICATION_CREDENTIALS or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+    
+    if creds_path:
+        # Expand ~ to home directory and resolve relative paths
+        creds_path = os.path.expanduser(creds_path)
+        creds_path = os.path.abspath(creds_path)
+        
+        if os.path.exists(creds_path):
+            logger.info(f"✅ Using service account credentials from: {creds_path}")
+            credentials = service_account.Credentials.from_service_account_file(creds_path)
+            return KeyManagementServiceClient(credentials=credentials)
+        else:
+            logger.warning(f"⚠️  Service account key file not found: {creds_path}")
+            logger.warning("⚠️  Falling back to Application Default Credentials (ADC)")
+            logger.warning("⚠️  Run './scripts/setup-local-gcp-auth.sh' to create a service account key")
+    else:
+        logger.debug("No GOOGLE_APPLICATION_CREDENTIALS set, using Application Default Credentials (ADC)")
+    
+    # Use Application Default Credentials (ADC)
+    # This works automatically on Cloud Run, or with gcloud auth application-default login
     return KeyManagementServiceClient()
 
 
