@@ -37,3 +37,5 @@ COMMENT ON COLUMN companies.owner_id IS 'User who owns/created this company';
 
 
 
+
+
